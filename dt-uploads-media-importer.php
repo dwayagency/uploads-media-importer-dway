@@ -216,12 +216,26 @@ class DT_Uploads_Media_Importer {
 				$count++; continue;
 			}
 
+			$post_date = null; $post_date_gmt = null;
+			if (preg_match('#^(\\d{4})/(\\d{2})/#', $rel, $m)) {
+				$y = (int) $m[1]; $mo = (int) $m[2];
+				if ($y >= 1970 && $y <= 2100 && $mo >= 1 && $mo <= 12) {
+					$tz = function_exists('wp_timezone') ? wp_timezone() : new DateTimeZone('UTC');
+					$d = new DateTime(sprintf('%04d-%02d-01 12:00:00', $y, $mo), $tz);
+					$post_date = $d->format('Y-m-d H:i:s');
+					$du = clone $d; $du->setTimezone(new DateTimeZone('UTC')); $post_date_gmt = $du->format('Y-m-d H:i:s');
+				}
+			}
 			$attachment = [
 				'post_title'     => sanitize_file_name(pathinfo($path, PATHINFO_FILENAME)),
 				'post_content'   => '',
 				'post_status'    => 'inherit',
 				'post_mime_type' => $mime,
 			];
+			if ($post_date && $post_date_gmt) {
+				$attachment['post_date'] = $post_date;
+				$attachment['post_date_gmt'] = $post_date_gmt;
+			}
 			$attach_id = wp_insert_attachment($attachment, $path);
 			if (is_wp_error($attach_id)) {
 				$errors[] = [ 'file' => $rel, 'error' => $attach_id->get_error_message() ];
